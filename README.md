@@ -1,18 +1,23 @@
-# Last Light v35
+# Last Light v35.5 — Balanced Experience
 
-A compact skill-based retro-neon arcade game for the browser. Sweep through asteroids with the cursor or touch-drag on mobile, protect the final star, chain risky combos, and survive one more run.
+Bu sürüm, Last Light v35.5 paketinin yalnızca zorluk dengesi güncellenmiş halidir.
 
-## Controls
+## Çalıştırma
 
-- Desktop: move the cursor through asteroids and healing sparks.
-- Mobile / tablet: hold and drag across the screen.
-- Space: start / pause.
-- Escape: pause / resume.
+Projeyi herhangi bir statik sunucuda çalıştırabilirsiniz:
 
-## Package
+```bash
+python3 -m http.server 5173
+```
 
-`index.html` is at the root for browser play on itch.io and static web hosts. The runtime is `app.min.js`. The package keeps only the files needed to run and present the game as a web/PWA build: app runtime, manifest, icons, privacy page, robots file, and this README.
+Ardından tarayıcıda şu adrese gidin:
 
-Browser JavaScript cannot be made impossible to inspect, but this release excludes source maps, debug hooks, source files, test files, and redundant store-art exports, and ships a minified/mangled runtime build.
+```text
+http://localhost:5173
+```
 
-Release note: v35 keeps the cleaned release package and sharpens the arcade feel again: faster pressure, tighter sweep windows, safer floating-text placement, stronger brink/combo feedback, shorter heal windows, and a more deliberate skill-first difficulty curve.
+## Bu sürümde ne değişti?
+
+Görsel yapı, sesler, UI, menü akışları, ikonlar, manifest ve HTML dosyaları korunmuştur. Sadece `app.min.js` içindeki zorluk dengesi değerleri güncellenmiştir.
+
+Detaylar için `BALANCE_NOTES.md` dosyasına bakabilirsiniz.
