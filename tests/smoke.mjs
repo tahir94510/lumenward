@@ -134,6 +134,22 @@ async function run() {
   });
   page.on("pageerror", (e) => pageErrors.push(String(e)));
 
+  // Instrument AudioContext creation so we can confirm audio unlocks on gesture.
+  await page.addInitScript(() => {
+    window.__ac = [];
+    const O = window.AudioContext || window.webkitAudioContext;
+    if (O) {
+      const Wrapped = class extends O {
+        constructor(...a) {
+          super(...a);
+          window.__ac.push(this);
+        }
+      };
+      window.AudioContext = Wrapped;
+      window.webkitAudioContext = Wrapped;
+    }
+  });
+
   console.log(`\n[smoke] ${dir}  (${url})`);
   await page.goto(url, { waitUntil: "load" });
   await sleep(1200);
@@ -174,6 +190,13 @@ async function run() {
   await page.screenshot({ path: join(shotDir, `${label}-3-pause.png`) });
   await page.keyboard.press("Space");
   await sleep(300);
+
+  const audio = await page.evaluate(() => {
+    const list = window.__ac || [];
+    return { count: list.length, running: list.some((c) => c && c.state === "running") };
+  });
+  check(audio.count > 0, `audio engine created an AudioContext on gesture (${JSON.stringify(audio)})`);
+  check(audio.running, "AudioContext reached 'running' state (audio unlocked)");
 
   check(jsErrors.length === 0, `no JS console errors (${jsErrors.slice(0, 3).join(" | ")})`);
   check(pageErrors.length === 0, `no uncaught page errors (${pageErrors.slice(0, 3).join(" | ")})`);

@@ -27,144 +27,214 @@
     }
   }
   const d = new (class {
-      constructor() {
-        ((this.enabled = !0),
-          (this.ctx = null),
-          (this.master = null),
-          (this.music = null),
-          (this.noSfx = !1),
-          (this.stepAt = 0),
-          (this.step = 0),
-          (this.musicPattern = [0, 7, 12, 7, 3, 10, 15, 10, -2, 5, 12, 5, 0, 7, 10, 7]),
-          (this.bassPattern = [0, 0, -5, -5, -7, -7, -5, -5]));
+    constructor() {
+      this.enabled = true;
+      this.volume = 0.85;
+      this.ctx = null;
+      this.master = null;
+      this.comp = null;
+      this.music = null;
+      this.noSfx = false;
+      this.voices = 0;
+      this.maxVoices = 24;
+      this.stepAt = 0;
+      this.step = 0;
+      this.musicGain = 0.072;
+      this.musicPattern = [0, 7, 12, 7, 3, 10, 15, 10, -2, 5, 12, 5, 0, 7, 10, 7];
+      this.menuPattern = [0, 5, 7, 12, 7, 5, 3, 0, -2, 3, 5, 10, 5, 3, 0, -2];
+      this.arpPattern = [0, 4, 7, 12, 7, 4];
+      this.bassPattern = [0, 0, -5, -5, -7, -7, -5, -5];
+    }
+    init() {
+      if (this.ctx) return;
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) {
+        this.enabled = false;
+        return;
       }
-      init() {
-        if (this.ctx) return;
-        const e = window.AudioContext || window.webkitAudioContext;
-        e
-          ? ((this.ctx = new e()),
-            (this.master = this.ctx.createGain()),
-            (this.master.gain.value = this.enabled ? 0.78 : 1e-4),
-            this.master.connect(this.ctx.destination),
-            (this.music = this.ctx.createGain()),
-            (this.music.gain.value = 0.072),
-            this.music.connect(this.master))
-          : (this.enabled = !1);
-      }
-      resume() {
-        (this.init(), this.ctx && "suspended" === this.ctx.state && this.ctx.resume());
-      }
-      toggle() {
-        return (
-          this.resume(),
-          (this.enabled = !this.enabled),
-          this.master &&
-            this.master.gain.setTargetAtTime(
-              this.enabled ? 0.78 : 1e-4,
-              this.ctx.currentTime,
-              0.025,
-            ),
-          this.enabled
+      this.ctx = new AC();
+      this.master = this.ctx.createGain();
+      this.master.gain.value = this.enabled ? this.volume * 0.9 : 1e-4;
+      // Gentle glue compression so stacked SFX never clip or get harsh.
+      this.comp = this.ctx.createDynamicsCompressor();
+      try {
+        this.comp.threshold.value = -14;
+        this.comp.knee.value = 26;
+        this.comp.ratio.value = 3.2;
+        this.comp.attack.value = 0.004;
+        this.comp.release.value = 0.18;
+      } catch (e) {}
+      this.master.connect(this.comp);
+      this.comp.connect(this.ctx.destination);
+      this.music = this.ctx.createGain();
+      this.music.gain.value = this.musicGain;
+      this.music.connect(this.master);
+    }
+    resume() {
+      this.init();
+      if (this.ctx && this.ctx.state === "suspended") this.ctx.resume();
+    }
+    _persist() {
+      try {
+        if (window.LLPlatform && window.LLPlatform.saveSettings)
+          window.LLPlatform.saveSettings({
+            sound: this.enabled,
+            volume: this.volume,
+            reducedMotion: !!h.reducedMotion,
+            colorblind: !!h.colorblind,
+          });
+      } catch (e) {}
+    }
+    toggle() {
+      this.resume();
+      this.enabled = !this.enabled;
+      if (this.master)
+        this.master.gain.setTargetAtTime(
+          this.enabled ? this.volume * 0.9 : 1e-4,
+          this.ctx.currentTime,
+          0.025,
         );
+      this._persist();
+      return this.enabled;
+    }
+    setVolume(v) {
+      this.volume = Math.max(0, Math.min(1, v));
+      if (this.master && this.enabled && this.ctx)
+        this.master.gain.setTargetAtTime(this.volume * 0.9, this.ctx.currentTime, 0.02);
+      this._persist();
+    }
+    _voice(node) {
+      // Track one-shot voices so rapid-fire SFX can't spawn unbounded nodes.
+      this.voices++;
+      const self = this;
+      node.onended = () => {
+        self.voices = Math.max(0, self.voices - 1);
+      };
+    }
+    tone(e, t, r = 0.06, a = "square", n = null, o = 0) {
+      if (!this.enabled || !this.ctx || this.voices > this.maxVoices) return;
+      const s = this.ctx.currentTime,
+        i = this.ctx.createOscillator(),
+        l = this.ctx.createGain();
+      ((i.type = a),
+        i.frequency.setValueAtTime(e, s),
+        o && i.frequency.exponentialRampToValueAtTime(Math.max(22, e + o), s + t),
+        l.gain.setValueAtTime(1e-4, s),
+        l.gain.exponentialRampToValueAtTime(r, s + 0.008),
+        l.gain.exponentialRampToValueAtTime(1e-4, s + t),
+        i.connect(l),
+        l.connect(n || this.master),
+        this._voice(i),
+        i.start(s),
+        i.stop(s + t + 0.03));
+    }
+    noise(e, t = 0.07, r = 900, a = null) {
+      if (!this.enabled || !this.ctx || this.voices > this.maxVoices) return;
+      const n = this.ctx.currentTime,
+        o = Math.max(1, Math.floor(this.ctx.sampleRate * e)),
+        s = this.ctx.createBuffer(1, o, this.ctx.sampleRate),
+        c = s.getChannelData(0);
+      for (let k = 0; k < o; k++) c[k] = (2 * Math.random() - 1) * (1 - k / o);
+      const l = this.ctx.createBufferSource(),
+        f = this.ctx.createBiquadFilter(),
+        g = this.ctx.createGain();
+      ((l.buffer = s),
+        (f.type = "bandpass"),
+        (f.frequency.value = r),
+        (f.Q.value = 0.85),
+        g.gain.setValueAtTime(t, n),
+        g.gain.exponentialRampToValueAtTime(1e-4, n + e),
+        l.connect(f),
+        f.connect(g),
+        g.connect(a || this.master),
+        this._voice(l),
+        l.start(n),
+        l.stop(n + e + 0.02));
+    }
+    tick(e, t) {
+      if (!this.enabled || !this.ctx) return;
+      this.stepAt -= e;
+      if (this.stepAt > 0) return;
+      const playing = "playing" === t,
+        menu = "menu" === t;
+      // Energy follows the real difficulty curve, so the music intensifies as
+      // the run heats up (adaptive/vertical layering).
+      const energy = playing
+        ? Math.max(0, Math.min(1, (h.elapsed || 0) / 66 + (h.score || 0) / 180))
+        : 0;
+      this.stepAt = playing ? 0.168 - 0.03 * energy : menu ? 0.255 : 0.23;
+      if (this.music)
+        this.music.gain.setTargetAtTime(
+          playing ? this.musicGain * (0.85 + 0.85 * energy) : menu ? this.musicGain * 0.8 : this.musicGain,
+          this.ctx.currentTime,
+          0.25,
+        );
+      const pat = menu ? this.menuPattern : this.musicPattern,
+        note = pat[this.step % pat.length],
+        bass = this.bassPattern[Math.floor(this.step / 2) % this.bassPattern.length],
+        root = (menu ? 123.47 : 146.83) * Math.pow(2, note / 12),
+        bassHz = 73.415 * Math.pow(2, bass / 12);
+      this.tone(root, menu ? 0.105 : 0.08, playing ? 0.034 : menu ? 0.019 : 0.022, "triangle", this.music, 0);
+      this.step % 2 == 1 &&
+        this.tone(1.5 * root, 0.055, playing ? 0.01 : menu ? 0.004 : 0.006, "sine", this.music, 0);
+      this.step % 4 == 0 &&
+        this.tone(bassHz, menu ? 0.2 : 0.15, playing ? 0.03 : menu ? 0.014 : 0.018, "sine", this.music, -8);
+      // Arpeggio layer fades in as the run gains energy.
+      if (playing && energy > 0.18) {
+        const arp = this.arpPattern[this.step % this.arpPattern.length];
+        this.tone(2 * root * Math.pow(2, arp / 12), 0.05, 0.012 * (energy - 0.1), "square", this.music, 40);
       }
-      tone(e, t, r = 0.06, a = "square", n = null, o = 0) {
-        if (!this.enabled || !this.ctx) return;
-        const s = this.ctx.currentTime,
-          i = this.ctx.createOscillator(),
-          l = this.ctx.createGain();
-        ((i.type = a),
-          i.frequency.setValueAtTime(e, s),
-          o && i.frequency.exponentialRampToValueAtTime(Math.max(22, e + o), s + t),
-          l.gain.setValueAtTime(1e-4, s),
-          l.gain.exponentialRampToValueAtTime(r, s + 0.008),
-          l.gain.exponentialRampToValueAtTime(1e-4, s + t),
-          i.connect(l),
-          l.connect(n || this.master),
-          i.start(s),
-          i.stop(s + t + 0.03));
-      }
-      noise(e, t = 0.07, r = 900, a = null) {
-        if (!this.enabled || !this.ctx) return;
-        const n = this.ctx.currentTime,
-          o = Math.max(1, Math.floor(this.ctx.sampleRate * e)),
-          s = this.ctx.createBuffer(1, o, this.ctx.sampleRate),
-          i = s.getChannelData(0);
-        for (let e = 0; e < o; e++) i[e] = (2 * Math.random() - 1) * (1 - e / o);
-        const l = this.ctx.createBufferSource(),
-          d = this.ctx.createBiquadFilter(),
-          h = this.ctx.createGain();
-        ((l.buffer = s),
-          (d.type = "bandpass"),
-          (d.frequency.value = r),
-          (d.Q.value = 0.85),
-          h.gain.setValueAtTime(t, n),
-          h.gain.exponentialRampToValueAtTime(1e-4, n + e),
-          l.connect(d),
-          d.connect(h),
-          h.connect(a || this.master),
-          l.start(n),
-          l.stop(n + e + 0.02));
-      }
-      tick(e, t) {
-        if (!this.enabled || !this.ctx) return;
-        if (((this.stepAt -= e), this.stepAt > 0)) return;
-        const r = "playing" === t,
-          a = "menu" === t;
-        this.stepAt = r ? 0.155 : a ? 0.255 : 0.23;
-        const n = a ? [0, 5, 7, 12, 7, 5, 3, 0, -2, 3, 5, 10, 5, 3, 0, -2] : this.musicPattern,
-          o = n[this.step % n.length],
-          s = this.bassPattern[Math.floor(this.step / 2) % this.bassPattern.length],
-          i = (a ? 123.47 : 146.83) * Math.pow(2, o / 12),
-          l = 73.415 * Math.pow(2, s / 12);
-        (this.tone(i, a ? 0.105 : 0.08, r ? 0.034 : a ? 0.019 : 0.022, "triangle", this.music, 0),
-          this.step % 2 == 1 &&
-            this.tone(1.5 * i, 0.055, r ? 0.01 : a ? 0.004 : 0.006, "sine", this.music, 0),
-          this.step % 4 == 0 &&
-            this.tone(l, a ? 0.2 : 0.15, r ? 0.03 : a ? 0.014 : 0.018, "sine", this.music, -8),
-          this.step++);
-      }
-      hit(e) {
-        this.noSfx || this.tone(e ? 330 : 610, 0.055, 0.045, "square", null, e ? -18 : 120);
-      }
-      crack() {
-        this.noSfx ||
-          (this.noise(0.07, 0.035, 720), this.tone(150, 0.075, 0.026, "sawtooth", null, -40));
-      }
-      pop(e) {
-        this.noSfx ||
-          (this.tone(520 + 42 * Math.min(e, 9), 0.08, 0.055, "triangle", null, 180),
-          this.noise(0.075, 0.035, 1400));
-      }
-      clutch() {
-        this.noSfx ||
-          (this.tone(880, 0.08, 0.045, "triangle", null, 260),
-          this.tone(1320, 0.06, 0.024, "sine", null, 140));
-      }
-      heal() {
-        this.noSfx ||
-          (this.tone(720, 0.11, 0.052, "sine", null, 260),
-          this.tone(1040, 0.12, 0.028, "triangle", null, 180));
-      }
-      damage() {
-        this.noSfx ||
-          (this.noise(0.16, 0.08, 460), this.tone(120, 0.18, 0.055, "sawtooth", null, -55));
-      }
-      final() {
-        this.noSfx ||
-          (this.noise(0.55, 0.18, 620),
-          this.tone(78, 0.62, 0.11, "sawtooth", null, -38),
-          this.tone(220, 0.26, 0.055, "triangle", null, -95));
-      }
-      reform() {
-        this.noSfx ||
-          (this.tone(246, 0.14, 0.022, "triangle", null, 110),
-          this.tone(369, 0.18, 0.018, "sine", null, 160),
-          this.tone(554, 0.24, 0.014, "triangle", null, 220));
-      }
-      button() {
-        this.noSfx || this.tone(480, 0.055, 0.035, "square", null, 80);
-      }
-    })(),
+      // Soft hi-hat shimmer at higher energy for extra drive.
+      if (playing && energy > 0.42 && this.step % 2 == 0)
+        this.noise(0.03, 0.01 * (energy - 0.3), 5200, this.music);
+      this.step++;
+    }
+    hit(e) {
+      this.noSfx || this.tone(e ? 330 : 610, 0.055, 0.045, "square", null, e ? -18 : 120);
+    }
+    crack() {
+      this.noSfx ||
+        (this.noise(0.07, 0.035, 720), this.tone(150, 0.075, 0.026, "sawtooth", null, -40));
+    }
+    pop(e) {
+      if (this.noSfx) return;
+      (this.tone(520 + 42 * Math.min(e, 9), 0.08, 0.055, "triangle", null, 180),
+        this.noise(0.075, 0.035, 1400));
+      // Extra sparkle as combos climb — the honest dopamine ladder.
+      if (e >= 4) this.tone(880 + 60 * Math.min(e, 12), 0.06, 0.02, "sine", null, 220);
+    }
+    clutch() {
+      if (this.noSfx) return;
+      // A bright rising triad — the "whew" of a skill brink-save.
+      (this.tone(660, 0.06, 0.04, "triangle", null, 120),
+        this.tone(990, 0.07, 0.03, "triangle", null, 160),
+        this.tone(1320, 0.08, 0.024, "sine", null, 200));
+    }
+    heal() {
+      this.noSfx ||
+        (this.tone(720, 0.11, 0.052, "sine", null, 260),
+        this.tone(1040, 0.12, 0.028, "triangle", null, 180));
+    }
+    damage() {
+      this.noSfx ||
+        (this.noise(0.16, 0.08, 460), this.tone(120, 0.18, 0.055, "sawtooth", null, -55));
+    }
+    final() {
+      this.noSfx ||
+        (this.noise(0.55, 0.18, 620),
+        this.tone(78, 0.62, 0.11, "sawtooth", null, -38),
+        this.tone(220, 0.26, 0.055, "triangle", null, -95));
+    }
+    reform() {
+      this.noSfx ||
+        (this.tone(246, 0.14, 0.022, "triangle", null, 110),
+        this.tone(369, 0.18, 0.018, "sine", null, 160),
+        this.tone(554, 0.24, 0.014, "triangle", null, 220));
+    }
+    button() {
+      this.noSfx || this.tone(480, 0.055, 0.035, "square", null, 80);
+    }
+  })(),
     h = {
       mode: "menu",
       time: 0,
@@ -208,6 +278,7 @@
       score: 0,
       best: (function () {
         try {
+          if (window.LLPlatform && window.LLPlatform.loadBest) return window.LLPlatform.loadBest();
           return Number(localStorage.getItem(a) || 0) || 0;
         } catch (e) {
           return 0;
@@ -242,7 +313,28 @@
       runId: 0,
       hitCooldown: 0.048,
       asteroidHitCooldown: 0.078,
+      reducedMotion: null,
+      colorblind: !1,
+      hydrated: !1,
     };
+  // Load persisted preferences (sound, volume, reduced motion, colorblind).
+  // Falls back to the OS reduced-motion preference when the player hasn't chosen.
+  function loadGameSettings() {
+    try {
+      const st =
+        window.LLPlatform && window.LLPlatform.loadSettings ? window.LLPlatform.loadSettings() : {};
+      if (typeof st.sound === "boolean") d.enabled = st.sound;
+      if (typeof st.volume === "number") d.volume = Math.max(0, Math.min(1, st.volume));
+      if (typeof st.reducedMotion === "boolean") h.reducedMotion = st.reducedMotion;
+      if (typeof st.colorblind === "boolean") h.colorblind = st.colorblind;
+    } catch (e) {}
+    try {
+      if (h.reducedMotion == null && window.matchMedia)
+        h.reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    } catch (e) {}
+    if (h.reducedMotion == null) h.reducedMotion = !1;
+  }
+  loadGameSettings();
   function c() {
     const a = {
         initialized: h.w > 0 && h.h > 0,
@@ -901,7 +993,14 @@
               (function (e) {
                 try {
                   localStorage.setItem(a, String(e));
-                } catch (e) {}
+                } catch (_) {}
+                try {
+                  if (window.LLPlatform && window.LLPlatform.saveBest) window.LLPlatform.saveBest(e);
+                } catch (_) {}
+                try {
+                  if (window.LLPlatform && window.LLPlatform.submitScore)
+                    window.LLPlatform.submitScore(h.score);
+                } catch (_) {}
               })(h.best),
               (h.asteroids.length = 0),
               (h.spawnQueue.length = 0),
@@ -2179,7 +2278,12 @@
       window.visualViewport.addEventListener("resize", () => setTimeout(c, 40)),
     document.addEventListener &&
       document.addEventListener("visibilitychange", () => {
-        document.hidden || c();
+        if (!document.hidden) {
+          c();
+          try {
+            d.resume();
+          } catch (_) {}
+        }
       }),
     window.addEventListener("keydown", (e) => {
       ("Space" === e.code &&
@@ -2193,7 +2297,15 @@
     }),
     c(),
     (d.noSfx = !0),
+    (function () {
+      try {
+        if (window.LLPlatform && window.LLPlatform.init) window.LLPlatform.init();
+      } catch (_) {}
+    })(),
     requestAnimationFrame((e) => {
       ((h.last = e), j(e));
+      try {
+        if (window.LLPlatform && window.LLPlatform.ready) window.LLPlatform.ready();
+      } catch (_) {}
     }));
 })();
