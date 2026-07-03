@@ -7,3 +7,4 @@ dist/
 *.keystore
 *.jks
 play-service-account*.json
+lumenward-*.zip

@@ -137,7 +137,12 @@ async function writeVariant(target, outDir) {
     legalComments: "none",
     target: ["es2019"],
   });
-  writeFileSync(join(outDir, "app.min.js"), out.code);
+  // Embedded copyright/ownership banner survives minification (a deterrent and
+  // a clear ownership signal in any dispute — the browser build is readable).
+  const banner =
+    `/*! ${TITLE} v${VERSION} (${target}) — Copyright (c) 2026 ${TITLE}. ` +
+    `All rights reserved. Proprietary; see LICENSE. */\n`;
+  writeFileSync(join(outDir, "app.min.js"), banner + out.code);
 
   // ---- index.html ----
   const html = tmpl(readFileSync(join(SRC, "index.template.html"), "utf8"), {
