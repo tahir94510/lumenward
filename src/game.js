@@ -295,6 +295,8 @@
       shake: 0,
       flash: 0,
       hitStop: 0,
+      newBest: !1,
+      bestGap: 0,
       gameoverT: 0,
       reassembleT: 0,
       reassembleTarget: null,
@@ -586,21 +588,29 @@
                 (d.button(), d.toggle());
               },
             ],
+            [
+              "motion",
+              h.reducedMotion ? "SHAKE OFF" : "SHAKE ON",
+              () => {
+                (d.button(), (h.reducedMotion = !h.reducedMotion), d._persist());
+              },
+            ],
           ],
           s = 14 * h.dpr,
-          i = n(0.14 * h.starR, 6 * h.dpr, 12 * h.dpr);
+          i = n(0.14 * h.starR, 6 * h.dpr, 12 * h.dpr),
+          rowN = r.length;
         let l = n(0.32 * h.starR, 23 * h.dpr, 36 * h.dpr),
           c = n(1.18 * h.starR, 86 * h.dpr, Math.min(146 * h.dpr, 0.42 * h.w));
-        const f = 2 * c + i <= 0.92 * h.w,
-          p = f ? 1 : 2,
+        const f = rowN * c + i * (rowN - 1) <= 0.92 * h.w,
+          p = f ? 1 : rowN,
           m = h.centerY + 1.46 * h.starR,
           g = (h.h - m - s - i * (p - 1)) / p;
         ((l = n(Math.min(l, g), 21 * h.dpr, 36 * h.dpr)),
-          f && (c = Math.min(c, (0.92 * h.w - i) / 2)));
+          f && (c = Math.min(c, (0.92 * h.w - i * (rowN - 1)) / rowN)));
         const u = p * l + i * (p - 1),
           b = n(m, h.centerY + h.starR + 8 * h.dpr, h.h - u - s);
         if (f) {
-          const e = 2 * c + i,
+          const e = rowN * c + i * (rowN - 1),
             t = h.centerX - e / 2;
           r.forEach((e, r) => M(e[0], e[1], t + r * (c + i), b, c, l, e[2], ""));
         } else
@@ -1002,6 +1012,8 @@
               (h.gameoverT = 0),
               (h.canInteract = !1),
               (h.overButtonsReady = !1),
+              (h.newBest = h.score > 0 && h.score >= h.best),
+              (h.bestGap = Math.max(0, h.best - h.score)),
               (h.best = Math.max(h.best, h.score)),
               (function (e) {
                 try {
@@ -1895,6 +1907,27 @@
         shadowBlur: 0,
         weight: 800,
       }));
+    // "One more try" nudge: celebrate a new record, or show how close the
+    // player came — honest, skill-anchored motivation to run it back.
+    if ("gameover" === h.mode) {
+      const g = p + s + n(0.14 * e, 8 * h.dpr, 14 * h.dpr),
+        m = n(0.15 * e, 8 * h.dpr, 14 * h.dpr);
+      h.newBest
+        ? u("★ NEW BEST ★", h.centerX, g, m, {
+            color: "#bffff4",
+            stroke: "rgba(5,5,13,.85)",
+            shadowBlur: 0.8 * m,
+            weight: 900,
+          })
+        : h.bestGap > 0 &&
+          h.bestGap <= Math.max(10, 0.2 * h.best) &&
+          u(`${fmtNum(h.bestGap)} FROM BEST`, h.centerX, g, m, {
+            color: "rgba(191,255,244,.85)",
+            stroke: "rgba(5,5,13,.8)",
+            shadowBlur: 0.55 * m,
+            weight: 850,
+          });
+    }
   }
   function J() {
     const e = 16 * h.dpr,
