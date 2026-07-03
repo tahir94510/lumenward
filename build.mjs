@@ -29,6 +29,18 @@ const ENV = {
   supabaseUrl: process.env.LUMENWARD_SUPABASE_URL || "",
   supabaseKey: process.env.LUMENWARD_SUPABASE_KEY || "",
 };
+// Canonical origin of the self-hosted deployment (SEO tags, web target only).
+const CANONICAL = (process.env.LUMENWARD_CANONICAL || "https://lumenward.vercel.app").replace(
+  /\/$/,
+  "",
+);
+
+// Structured data + canonical/social tags — injected into the web head only,
+// so the offline (Playables/itch) bundles stay free of external references.
+const SEO_HEAD = `  <link rel="canonical" href="${CANONICAL}/" />
+  <meta property="og:url" content="${CANONICAL}/" />
+  <meta name="keywords" content="retro arcade game, browser game, free online game, asteroid game, high score, skill game, space game, html5 game" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"VideoGame","name":"${TITLE}","url":"${CANONICAL}/","image":"${CANONICAL}/og-image.png","description":"Sweep asteroids, chain risky combos, and guard the final light in a fast, skill-based retro arcade challenge.","genre":["Arcade","Action"],"gamePlatform":["Web browser","Android"],"applicationCategory":"Game","operatingSystem":"Any","playMode":"SinglePlayer","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"author":{"@type":"Organization","name":"${TITLE}"}}</script>`;
 
 const OFFLINE_CSP =
   "default-src 'self'; script-src 'self'; script-src-attr 'none'; style-src 'unsafe-inline'; " +
@@ -76,21 +88,29 @@ const TARGETS = {
   web: {
     csp: webCsp(),
     flags: { ads: true, cloud: false, board: true },
-    headExtra: ENV.adsenseClient
-      ? `<script async data-ad-client="${ENV.adsenseClient}" src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js" crossorigin="anonymous"></script>`
-      : "",
+    headExtra:
+      SEO_HEAD +
+      (ENV.adsenseClient
+        ? `\n  <script async data-ad-client="${ENV.adsenseClient}" src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js" crossorigin="anonymous"></script>`
+        : ""),
+    og: { image: "og-image.png", w: "1200", h: "630", card: "summary_large_image" },
+    extraAssets: ["og-image.png"],
     env: ENV,
   },
   playables: {
     csp: PLAYABLES_CSP,
     flags: { ads: false, cloud: true, board: true },
     headExtra: `<script src="https://www.youtube.com/game_api/v1"></script>`,
+    og: { image: "icon-512.png", w: "512", h: "512", card: "summary" },
+    extraAssets: [],
     env: { adsenseClient: "", supabaseUrl: "", supabaseKey: "" },
   },
   local: {
     csp: OFFLINE_CSP,
     flags: { ads: false, cloud: false, board: false },
     headExtra: "",
+    og: { image: "icon-512.png", w: "512", h: "512", card: "summary" },
+    extraAssets: [],
     env: { adsenseClient: "", supabaseUrl: "", supabaseKey: "" },
   },
 };
@@ -150,6 +170,10 @@ async function writeVariant(target, outDir) {
     __VERSION__: VERSION,
     __CSP__: spec.csp,
     __HEAD_EXTRA__: spec.headExtra,
+    __OG_IMAGE__: spec.og.image,
+    __OG_W__: spec.og.w,
+    __OG_H__: spec.og.h,
+    __TW_CARD__: spec.og.card,
   });
   writeFileSync(join(outDir, "index.html"), html);
 
@@ -198,7 +222,7 @@ async function writeVariant(target, outDir) {
   writeFileSync(join(outDir, "privacy.html"), privacy);
 
   // ---- static assets ----
-  for (const a of STATIC_ASSETS) {
+  for (const a of STATIC_ASSETS.concat(spec.extraAssets || [])) {
     const from = join(ROOT, a);
     if (existsSync(from)) copyFileSync(from, join(outDir, a));
   }
