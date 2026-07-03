@@ -11,6 +11,7 @@ deploys as a fully offline experience.
 | `LUMENWARD_ADSENSE_CLIENT` | `ca-pub-1234567890123456` | Web build loads AdSense H5; rewarded "continue" + interstitial hooks activate; CSP widens to Google ad origins only |
 | `LUMENWARD_SUPABASE_URL` | `https://abcd1234.supabase.co` | Web build can submit/fetch global leaderboard scores |
 | `LUMENWARD_SUPABASE_KEY` | `eyJhbGciOi...` (anon key) | Auth for the leaderboard REST calls |
+| `LUMENWARD_CANONICAL` | `https://lumenward.vercel.app` | Canonical origin used in the web build's SEO tags (defaults to this value) |
 
 These are read by `build.mjs` at build time and injected as `window.LLEnv`.
 They never affect the `playables`/`local` variants, which stay offline.

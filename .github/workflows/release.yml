@@ -1,0 +1,92 @@
+# Lumenward — publishing pipeline (main branch only).
+# Jobs always finish green: when a channel's credentials are absent the job
+# logs a notice and succeeds, so the pipeline never shows failures or skips
+# while channels are still being onboarded. Add the secrets in docs/ENV.md
+# to activate each channel.
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  itch:
+    runs-on: ubuntu-latest
+    env:
+      BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
+      ITCH_TARGET: ${{ vars.ITCH_TARGET }}
+    steps:
+      - name: Check credentials
+        id: gate
+        run: |
+          if [ -n "$BUTLER_API_KEY" ] && [ -n "$ITCH_TARGET" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::itch.io publish not yet configured (BUTLER_API_KEY / ITCH_TARGET). Job succeeds as a no-op."
+          fi
+      - uses: actions/checkout@v5
+        if: steps.gate.outputs.run == 'true'
+      - uses: actions/setup-node@v5
+        if: steps.gate.outputs.run == 'true'
+        with:
+          node-version: 22
+          cache: npm
+      - name: Build and push to itch.io
+        if: steps.gate.outputs.run == 'true'
+        run: |
+          npm ci
+          node build.mjs local
+          curl -fsSL https://broth.itch.zone/butler/linux-amd64/LATEST/archive/default -o butler.zip
+          unzip -o butler.zip -d butler-bin
+          chmod +x butler-bin/butler
+          node -p "require('./package.json').version" > .butler-version
+          ./butler-bin/butler push dist/local "$ITCH_TARGET:html5" --userversion-file .butler-version
+
+  android:
+    runs-on: ubuntu-latest
+    env:
+      KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+      BUBBLEWRAP_KEYSTORE_PASSWORD: ${{ secrets.BUBBLEWRAP_KEYSTORE_PASSWORD }}
+      BUBBLEWRAP_KEY_PASSWORD: ${{ secrets.BUBBLEWRAP_KEY_PASSWORD }}
+    steps:
+      - name: Check credentials
+        id: gate
+        run: |
+          if [ -n "$KEYSTORE_B64" ] && [ -n "$BUBBLEWRAP_KEYSTORE_PASSWORD" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Android signing not yet configured (ANDROID_KEYSTORE_B64 / passwords). Job succeeds as a no-op."
+          fi
+      - uses: actions/checkout@v5
+        if: steps.gate.outputs.run == 'true'
+      - uses: actions/setup-node@v5
+        if: steps.gate.outputs.run == 'true'
+        with:
+          node-version: 22
+      - uses: actions/setup-java@v5
+        if: steps.gate.outputs.run == 'true'
+        with:
+          distribution: temurin
+          java-version: 17
+      - name: Build AAB with Bubblewrap
+        if: steps.gate.outputs.run == 'true'
+        run: |
+          echo "$KEYSTORE_B64" | base64 -d > android.keystore
+          npm i -g @bubblewrap/cli
+          # twa-manifest.json (committed) defines packageId, host, icons, and
+          # signing config pointing at ./android.keystore.
+          bubblewrap build --skipPwaValidation
+      - name: Upload AAB
+        if: steps.gate.outputs.run == 'true'
+        uses: actions/upload-artifact@v5
+        with:
+          name: lumenward-android
+          path: |
+            app-release-bundle.aab
+            app-release-signed.apk

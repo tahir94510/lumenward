@@ -82,6 +82,7 @@
             volume: this.volume,
             reducedMotion: !!h.reducedMotion,
             colorblind: !!h.colorblind,
+            haptics: !!h.haptics,
           });
       } catch (e) {}
     }
@@ -318,6 +319,7 @@
       asteroidHitCooldown: 0.078,
       reducedMotion: null,
       colorblind: !1,
+      haptics: !0,
       hydrated: !1,
     };
   // Load persisted preferences (sound, volume, reduced motion, colorblind).
@@ -330,6 +332,7 @@
       if (typeof st.volume === "number") d.volume = Math.max(0, Math.min(1, st.volume));
       if (typeof st.reducedMotion === "boolean") h.reducedMotion = st.reducedMotion;
       if (typeof st.colorblind === "boolean") h.colorblind = st.colorblind;
+      if (typeof st.haptics === "boolean") h.haptics = st.haptics;
     } catch (e) {}
     try {
       if (h.reducedMotion == null && window.matchMedia)
@@ -345,6 +348,14 @@
   function announce(msg) {
     if (!a11yEl || msg === a11yLast) return;
     ((a11yLast = msg), (a11yEl.textContent = msg));
+  }
+  // Haptic feedback on touch devices (Vibration API). Kept subtle: single-digit
+  // millisecond taps for pops, slightly longer pulses for big moments.
+  function buzz(pattern) {
+    if (!h.haptics || h.pointer.type !== "touch") return;
+    try {
+      navigator.vibrate && navigator.vibrate(pattern);
+    } catch (_) {}
   }
   function c() {
     const a = {
@@ -595,7 +606,19 @@
                 (d.button(), (h.reducedMotion = !h.reducedMotion), d._persist());
               },
             ],
-          ],
+          ].concat(
+            "touch" === h.pointer.type
+              ? [
+                  [
+                    "haptics",
+                    h.haptics ? "BUZZ ON" : "BUZZ OFF",
+                    () => {
+                      (d.button(), (h.haptics = !h.haptics), h.haptics && buzz(14), d._persist());
+                    },
+                  ],
+                ]
+              : [],
+          ),
           s = 14 * h.dpr,
           i = n(0.14 * h.starR, 6 * h.dpr, 12 * h.dpr),
           rowN = r.length;
@@ -950,8 +973,10 @@
           X("FLOW", h.centerX, h.centerY - 1.55 * h.starR, "#bffff4", 13),
           (h.flash = Math.max(h.flash, 0.055))),
         d.pop(h.combo),
+        buzz(6),
         a &&
           (d.clutch(),
+          buzz([12, 26, 20]),
           Y(e.x, e.y, Math.floor(22 * h.perfParticles), "clutch", 1.55),
           (h.shake = Math.max(h.shake, 0.22)),
           (h.flash = Math.max(h.flash, 0.13)),
@@ -998,6 +1023,7 @@
       (h.shake = h.damage >= 3 ? 1 : 0.45),
       (h.flash = h.damage >= 3 ? 0.82 : 0.32),
       (h.hitStop = Math.max(h.hitStop, h.damage >= 3 ? 0.13 : 0.09)),
+      buzz(h.damage >= 3 ? [70, 40, 90] : 40),
       d.damage(),
       Y(
         h.centerX,
@@ -1110,6 +1136,7 @@
       (e.life = 0),
       (e.alpha = 0),
       d.heal(),
+      buzz(14),
       (h.flash = Math.max(h.flash, 0.25)),
       Y(e.x, e.y, Math.floor(22 * h.perfParticles), "heal", 1.1),
       X("HEAL", h.centerX, h.centerY - 1.35 * h.starR, "#bffff4", 15),

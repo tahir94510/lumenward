@@ -1,9 +1,6 @@
-# Lumenward — build, verify, and package for every distribution channel.
-#
-# Free-tier friendly: jobs that need credentials (itch.io butler, Google Play)
-# are skipped gracefully when their secrets are absent, so the pipeline is
-# always green out of the box. Add the secrets listed in docs/ENV.md to
-# activate each channel.
+# Lumenward — build & verify on every push and PR.
+# Publishing (itch.io, Android AAB) lives in release.yml so PR runs stay a
+# single always-green job with no skipped entries.
 name: CI
 
 on:
@@ -16,14 +13,11 @@ permissions:
   contents: read
 
 jobs:
-  # ------------------------------------------------------------------
-  # 1) Build all three variants and run the headless gameplay smoke test.
-  # ------------------------------------------------------------------
   verify:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
@@ -56,105 +50,17 @@ jobs:
           npm run zip:playables
           npm run zip:itch
       - name: Upload Playables bundle (for the Developer Portal)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: lumenward-playables
           path: lumenward-playables.zip
       - name: Upload itch.io bundle
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: lumenward-itch
           path: lumenward-itch.zip
       - name: Upload web build (Vercel/Pages ready)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: lumenward-web
           path: dist/web
-
-  # ------------------------------------------------------------------
-  # 2) Publish to itch.io via butler — only when BUTLER_API_KEY exists.
-  #    Set ITCH_TARGET (e.g. "youruser/lumenward") as a repo variable.
-  # ------------------------------------------------------------------
-  itch:
-    needs: verify
-    if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    env:
-      BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
-      ITCH_TARGET: ${{ vars.ITCH_TARGET }}
-    steps:
-      - name: Check credentials
-        id: gate
-        run: |
-          if [ -n "$BUTLER_API_KEY" ] && [ -n "$ITCH_TARGET" ]; then
-            echo "run=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "run=false" >> "$GITHUB_OUTPUT"
-            echo "BUTLER_API_KEY / ITCH_TARGET not configured — skipping itch.io publish."
-          fi
-      - uses: actions/checkout@v4
-        if: steps.gate.outputs.run == 'true'
-      - uses: actions/setup-node@v4
-        if: steps.gate.outputs.run == 'true'
-        with:
-          node-version: 22
-          cache: npm
-      - name: Build and push to itch.io
-        if: steps.gate.outputs.run == 'true'
-        run: |
-          npm ci
-          node build.mjs local
-          curl -fsSL https://broth.itch.zone/butler/linux-amd64/LATEST/archive/default -o butler.zip
-          unzip -o butler.zip -d butler-bin
-          chmod +x butler-bin/butler
-          ./butler-bin/butler push dist/local "$ITCH_TARGET:html5" --userversion-file <(node -p "require('./package.json').version")
-
-  # ------------------------------------------------------------------
-  # 3) Android AAB via Bubblewrap (TWA) — only when the keystore exists.
-  #    Produces a signed .aab artifact ready for the Play Console.
-  # ------------------------------------------------------------------
-  android:
-    needs: verify
-    if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    env:
-      KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
-      BUBBLEWRAP_KEYSTORE_PASSWORD: ${{ secrets.BUBBLEWRAP_KEYSTORE_PASSWORD }}
-      BUBBLEWRAP_KEY_PASSWORD: ${{ secrets.BUBBLEWRAP_KEY_PASSWORD }}
-    steps:
-      - name: Check credentials
-        id: gate
-        run: |
-          if [ -n "$KEYSTORE_B64" ] && [ -n "$BUBBLEWRAP_KEYSTORE_PASSWORD" ]; then
-            echo "run=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "run=false" >> "$GITHUB_OUTPUT"
-            echo "Android signing secrets not configured — skipping AAB build."
-          fi
-      - uses: actions/checkout@v4
-        if: steps.gate.outputs.run == 'true'
-      - uses: actions/setup-node@v4
-        if: steps.gate.outputs.run == 'true'
-        with:
-          node-version: 22
-      - uses: actions/setup-java@v4
-        if: steps.gate.outputs.run == 'true'
-        with:
-          distribution: temurin
-          java-version: 17
-      - name: Build AAB with Bubblewrap
-        if: steps.gate.outputs.run == 'true'
-        run: |
-          echo "$KEYSTORE_B64" | base64 -d > android.keystore
-          npm i -g @bubblewrap/cli
-          # twa-manifest.json (committed) defines packageId, host, icons, and
-          # signing config pointing at ./android.keystore.
-          bubblewrap build --skipPwaValidation
-      - name: Upload AAB
-        if: steps.gate.outputs.run == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: lumenward-android
-          path: |
-            app-release-bundle.aab
-            app-release-signed.apk
