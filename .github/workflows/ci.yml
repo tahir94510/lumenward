@@ -47,6 +47,10 @@ jobs:
           node tests/smoke.mjs dist/web
           node tests/smoke.mjs dist/playables
           node tests/smoke.mjs dist/local
+      - name: Responsive matrix (Playables aspect ratios 9:32 … 32:9)
+        run: node tests/responsive.mjs dist/web
+      - name: Full-loop e2e (start -> game over -> retry)
+        run: node tests/e2e-gameover.mjs dist/web
       - name: Package distribution zips
         run: |
           npm run zip:playables
