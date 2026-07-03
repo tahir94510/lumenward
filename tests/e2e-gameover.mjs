@@ -71,10 +71,33 @@ async function waitLive(page, re, timeoutMs) {
   return null;
 }
 
+async function launchBrowser() {
+  try {
+    return await chromium.launch({ headless: true });
+  } catch (e) {
+    // Sandbox fallback: use the pre-provisioned Chromium when the local
+    // playwright version's own browser build isn't installed.
+    const guesses = [
+      "/opt/pw-browsers/chromium/chrome-linux/chrome",
+      ...require("node:fs")
+        .readdirSync("/opt/pw-browsers")
+        .filter((d) => d.startsWith("chromium-"))
+        .map((d) => `/opt/pw-browsers/${d}/chrome-linux/chrome`),
+    ];
+    for (const p of guesses) {
+      try {
+        require("node:fs").accessSync(p);
+        return await chromium.launch({ headless: true, executablePath: p });
+      } catch {}
+    }
+    throw e;
+  }
+}
+
 async function run() {
   await mkdir(shotDir, { recursive: true });
   const { server, port } = await serve(dir);
-  const browser = await chromium.launch({ headless: true });
+  const browser = await launchBrowser();
   const page = await browser.newPage({ viewport: { width: 900, height: 1400 } });
   const errs = [];
   page.on("pageerror", (e) => errs.push(String(e)));
