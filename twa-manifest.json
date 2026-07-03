@@ -1,0 +1,43 @@
+{
+  "packageId": "app.lumenward.twa",
+  "host": "lumenward.vercel.app",
+  "name": "Lumenward",
+  "launcherName": "Lumenward",
+  "display": "fullscreen",
+  "themeColor": "#080713",
+  "themeColorDark": "#080713",
+  "navigationColor": "#05050d",
+  "navigationColorDark": "#05050d",
+  "navigationDividerColor": "#05050d",
+  "navigationDividerColorDark": "#05050d",
+  "backgroundColor": "#05050d",
+  "enableNotifications": false,
+  "startUrl": "/index.html",
+  "iconUrl": "https://lumenward.vercel.app/icon-512.png",
+  "maskableIconUrl": "https://lumenward.vercel.app/icon-512.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "./android.keystore",
+    "alias": "lumenward"
+  },
+  "appVersionName": "36.0.0",
+  "appVersionCode": 36000,
+  "shortcuts": [],
+  "generatorApp": "bubblewrap-cli",
+  "webManifestUrl": "https://lumenward.vercel.app/manifest.webmanifest",
+  "fallbackType": "customtabs",
+  "features": {},
+  "alphaDependencies": {
+    "enabled": false
+  },
+  "enableSiteSettingsShortcut": false,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "fullScopeUrl": "https://lumenward.vercel.app/",
+  "minSdkVersion": 23,
+  "orientation": "default",
+  "fingerprints": [],
+  "additionalTrustedOrigins": [],
+  "retainedBundles": [],
+  "appVersion": "36.0.0"
+}
