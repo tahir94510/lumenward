@@ -3,26 +3,27 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-  <title>Lumenward</title>
-  <meta name="description" content="Sweep asteroids, chain risky combos, and guard the final light in a fast, skill-based retro arcade challenge." />
-  <meta property="og:title" content="Lumenward" />
-  <meta property="og:description" content="Sweep asteroids, chase brink saves, and keep the last light alive." />
+  <title>Last Light</title>
+  <meta name="description" content="Sweep asteroids and protect the final star in a skill-based retro arcade challenge." />
+  <meta property="og:title" content="Last Light" />
+  <meta property="og:description" content="Sweep asteroids, chase brink saves, and keep the final star alive." />
   <meta property="og:type" content="website" />
   <meta property="og:image" content="icon-512.png" />
   <meta property="og:image:width" content="512" />
   <meta property="og:image:height" content="512" />
   <meta name="twitter:card" content="summary" />
-  <meta name="twitter:title" content="Lumenward" />
-  <meta name="twitter:description" content="Sweep asteroids, chase brink saves, and keep the last light alive." />
+  <meta name="twitter:title" content="Last Light" />
+  <meta name="twitter:description" content="Sweep asteroids, chase brink saves, and keep the final star alive." />
+  <meta name="twitter:image" content="icon-512.png" />
   <meta name="theme-color" content="#080713" />
-  <meta name="application-name" content="Lumenward" />
+  <meta name="application-name" content="Last Light" />
   <meta name="color-scheme" content="dark" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-title" content="Lumenward" />
+  <meta name="apple-mobile-web-app-title" content="Last Light" />
   <meta name="mobile-web-app-capable" content="yes" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; script-src-attr 'none'; style-src 'unsafe-inline'; img-src 'self' data:; media-src 'self' blob:; connect-src 'none'; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; upgrade-insecure-requests" />
-  <meta name="version" content="36.0.0" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-ZswfTY7H35rbv8WC7NXBoiC7WNu86vSzCDChNWwZZDM='; script-src-elem 'self' 'sha256-ZswfTY7H35rbv8WC7NXBoiC7WNu86vSzCDChNWwZZDM='; script-src-attr 'none'; style-src 'unsafe-inline'; img-src 'self' data:; media-src 'self' blob:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; upgrade-insecure-requests">
+  <meta name="version" content="35.0.0" />
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="icon" href="icon.svg" type="image/svg+xml" />
   <link rel="alternate icon" href="icon-192.png" type="image/png" />
@@ -31,13 +32,10 @@
     :root{--void:#05050d;--cream:#fff0b7;--amber:#ffc86b;--rose:#ff7f75;--mint:#bffff4;--blue:#8fb4ff}
     html,body{margin:0;width:100%;height:100%;position:fixed;inset:0;min-height:100vh;min-height:100dvh;background:var(--void);overflow:hidden;overscroll-behavior:none;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-text-size-adjust:100%;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace}
     canvas{display:block;width:100vw;height:100vh;height:100dvh;image-rendering:pixelated;touch-action:none;cursor:none;-webkit-tap-highlight-color:transparent}
-    .sr-only{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
   </style>
-
 </head>
 <body>
-<canvas id="game" role="img" aria-label="Lumenward — sweep incoming asteroids away from the central light. Score is announced as you play."></canvas>
-<div id="a11y-status" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
+<canvas id="game" aria-label="Last Light game"></canvas>
 <script src="app.min.js" defer></script>
 </body>
 </html>
