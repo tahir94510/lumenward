@@ -294,6 +294,7 @@
       recentLanes: [],
       shake: 0,
       flash: 0,
+      hitStop: 0,
       gameoverT: 0,
       reassembleT: 0,
       reassembleTarget: null,
@@ -335,6 +336,14 @@
     if (h.reducedMotion == null) h.reducedMotion = !1;
   }
   loadGameSettings();
+  // Screen-reader announcements: the <canvas> is opaque to assistive tech, so
+  // push major state changes to a visually-hidden aria-live region.
+  const a11yEl = typeof document !== "undefined" ? document.getElementById("a11y-status") : null;
+  let a11yLast = "";
+  function announce(msg) {
+    if (!a11yEl || msg === a11yLast) return;
+    ((a11yLast = msg), (a11yEl.textContent = msg));
+  }
   function c() {
     const a = {
         initialized: h.w > 0 && h.h > 0,
@@ -698,7 +707,8 @@
         (h.canInteract = !0),
         (h.menuAsteroids.length = 0),
         (h.mode = "playing"),
-        (d.noSfx = !1));
+        (d.noSfx = !1),
+        announce("Run started. Guard the last light."));
     };
     "gameover" === h.mode && h.shards.length ? R(e) : e();
   }
@@ -933,7 +943,9 @@
         a &&
           (d.clutch(),
           Y(e.x, e.y, Math.floor(22 * h.perfParticles), "clutch", 1.55),
-          (h.shake = Math.max(h.shake, 0.22))));
+          (h.shake = Math.max(h.shake, 0.22)),
+          (h.flash = Math.max(h.flash, 0.13)),
+          (h.hitStop = Math.max(h.hitStop, 0.07))));
     }
     return (
       t
@@ -975,6 +987,7 @@
       (h.comboTimer = 0),
       (h.shake = h.damage >= 3 ? 1 : 0.45),
       (h.flash = h.damage >= 3 ? 0.82 : 0.32),
+      (h.hitStop = Math.max(h.hitStop, h.damage >= 3 ? 0.13 : 0.09)),
       d.damage(),
       Y(
         h.centerX,
@@ -1002,6 +1015,9 @@
                     window.LLPlatform.submitScore(h.score);
                 } catch (_) {}
               })(h.best),
+              announce(
+                "Game over. Score " + h.score + ". Best " + h.best + ". Tap to try again.",
+              ),
               (h.asteroids.length = 0),
               (h.spawnQueue.length = 0),
               (h.particles.length = 0),
@@ -1158,8 +1174,10 @@
     t && F(t);
   }
   function N() {
-    const e = (Math.random() - 0.5) * h.shake * 10 * h.dpr,
-      a = (Math.random() - 0.5) * h.shake * 10 * h.dpr;
+    // Reduced-motion players get no camera shake (the main vestibular trigger).
+    const sk = h.reducedMotion ? 0 : h.shake * 10 * h.dpr,
+      e = (Math.random() - 0.5) * sk,
+      a = (Math.random() - 0.5) * sk;
     (t.save(),
       t.translate(e, a),
       (function () {
@@ -1592,7 +1610,8 @@
       })(),
       h.flash <= 0 ||
         (t.save(),
-        (t.globalAlpha = 0.22 * h.flash),
+        // Softer full-screen flash under reduced motion (photosensitivity).
+        (t.globalAlpha = (h.reducedMotion ? 0.08 : 0.22) * h.flash),
         (t.fillStyle = "#fff4cf"),
         t.fillRect(0, 0, h.w, h.h),
         t.restore()),
@@ -2002,7 +2021,14 @@
       (h.pointer.type = t.pointerType || "mouse"));
   }
   function j(e) {
-    const t = Math.min(0.033, Math.max(0.001, (e - h.last) / 1e3));
+    const real = Math.min(0.033, Math.max(0.001, (e - h.last) / 1e3));
+    let t = real;
+    // Global hit-stop: a brief slow-mo on big impacts sells weight and makes a
+    // brink-save feel earned. Skipped for reduced-motion players.
+    if (h.hitStop > 0) {
+      h.hitStop = Math.max(0, h.hitStop - real);
+      if (!h.reducedMotion) t = real * 0.2;
+    }
     ((h.last = e),
       (function (e) {
         if ("paused" === h.mode) return void (d.noSfx = !0);

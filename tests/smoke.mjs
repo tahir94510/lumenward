@@ -178,6 +178,8 @@ async function run() {
   await sleep(500);
   const playPaint = await paintsPixels(page);
   check(playPaint.ok, "gameplay paints pixels after start");
+  const live = await page.$eval("#a11y-status", (el) => el.textContent).catch(() => "");
+  check(/run started/i.test(live), `screen-reader live region announces start ("${live}")`);
   const playHash = await sceneHash(page);
   check(playHash !== menuHash, "scene changed from menu to gameplay (game actually started)");
   await page.screenshot({ path: join(shotDir, `${label}-2-play.png`) });
