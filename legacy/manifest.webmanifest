@@ -1,7 +1,7 @@
 {
-  "name": "Lumenward",
-  "short_name": "Lumenward",
-  "description": "Sweep asteroids, chase brink saves and chain risky combos, and guard the final light in a fast skill-based retro arcade challenge.",
+  "name": "Last Light",
+  "short_name": "Last Light",
+  "description": "Sweep asteroids, chase brink saves and chain risky combos, and protect the final star in a fast skill-based retro arcade challenge.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "fullscreen",
@@ -32,7 +32,7 @@
       "purpose": "any"
     }
   ],
-  "id": "./lumenward",
+  "id": "./last-light",
   "display_override": [
     "fullscreen",
     "standalone"
