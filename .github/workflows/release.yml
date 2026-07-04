@@ -84,7 +84,7 @@ jobs:
           bubblewrap build --skipPwaValidation
       - name: Upload AAB
         if: steps.gate.outputs.run == 'true'
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: lumenward-android
           path: |
