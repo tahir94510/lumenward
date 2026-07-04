@@ -112,9 +112,9 @@
         self.voices = Math.max(0, self.voices - 1);
       };
     }
-    tone(e, t, r = 0.06, a = "square", n = null, o = 0) {
+    tone(e, t, r = 0.06, a = "square", n = null, o = 0, delay = 0) {
       if (!this.enabled || !this.ctx || this.voices > this.maxVoices) return;
-      const s = this.ctx.currentTime,
+      const s = this.ctx.currentTime + delay,
         i = this.ctx.createOscillator(),
         l = this.ctx.createGain();
       ((i.type = a),
@@ -211,6 +211,14 @@
         this.tone(990, 0.07, 0.03, "triangle", null, 160),
         this.tone(1320, 0.08, 0.024, "sine", null, 200));
     }
+    flow() {
+      if (this.noSfx) return;
+      // Quick ascending fanfare when the combo ladder ignites FLOW.
+      (this.tone(659.3, 0.07, 0.042, "triangle", null, 90, 0),
+        this.tone(880, 0.07, 0.04, "triangle", null, 110, 0.055),
+        this.tone(1174.7, 0.1, 0.036, "triangle", null, 150, 0.11),
+        this.noise(0.05, 0.014, 4200, null));
+    }
     heal() {
       this.noSfx ||
         (this.tone(720, 0.11, 0.052, "sine", null, 260),
@@ -298,6 +306,7 @@
       hitStop: 0,
       newBest: !1,
       bestGap: 0,
+      board: null,
       gameoverT: 0,
       reassembleT: 0,
       reassembleTarget: null,
@@ -960,9 +969,16 @@
     if (!t) {
       (h.comboTimer > 0 ? (h.combo = Math.min(32, h.combo + 1)) : (h.combo = 1),
         (h.comboTimer = n(0.92 - 0.016 * h.level, 0.46, 0.92)));
-      const t = o + Math.floor(Math.max(0, h.combo - 1) / 1.55) + (a ? 6 : 0);
+      const t = o + Math.floor(Math.max(0, h.combo - 1) / 1.55) + (a ? 6 : 0),
+        comboGrow = Math.min(h.combo, 12) * 0.34;
       ((h.score += t),
-        X(`+${t}`, e.x, e.y - 1.4 * e.radius, a ? "#bffff4" : "#fff0b7", a ? 18 : 14),
+        X(
+          `+${t}`,
+          e.x,
+          e.y - 1.4 * e.radius,
+          a ? "#bffff4" : "#fff0b7",
+          (a ? 18 : 14) + comboGrow,
+        ),
         a && X("BRINK", e.x, e.y - 2.25 * e.radius, "#bffff4", 13),
         h.combo >= 4 &&
           h.combo % 4 == 0 &&
@@ -970,8 +986,10 @@
         h.combo >= 4 &&
           h.combo % 4 == 0 &&
           ((h.spawnTimer = Math.min(h.spawnTimer, 0.24)),
-          X("FLOW", h.centerX, h.centerY - 1.55 * h.starR, "#bffff4", 13),
-          (h.flash = Math.max(h.flash, 0.055))),
+          X("FLOW", h.centerX, h.centerY - 1.55 * h.starR, "#bffff4", 13 + Math.min(h.combo, 16) * 0.3),
+          (h.flash = Math.max(h.flash, 0.055)),
+          d.flow(),
+          buzz([8, 18, 8])),
         d.pop(h.combo),
         buzz(6),
         a &&
@@ -1041,6 +1059,22 @@
               (h.newBest = h.score > 0 && h.score >= h.best),
               (h.bestGap = Math.max(0, h.best - h.score)),
               (h.best = Math.max(h.best, h.score)),
+              (h.board = null),
+              (function () {
+                // Optional global top-list (web variant with Supabase enabled).
+                try {
+                  const P = window.LLPlatform;
+                  P &&
+                    P.topScores &&
+                    P.features &&
+                    P.features.leaderboard &&
+                    P.topScores(5)
+                      .then((l) => {
+                        h.board = Array.isArray(l) ? l.slice(0, 5) : [];
+                      })
+                      .catch(() => {});
+                } catch (_) {}
+              })(),
               (function (e) {
                 try {
                   localStorage.setItem(a, String(e));
@@ -1481,14 +1515,26 @@
                 t.restore());
             })(),
           (function () {
-            for (const e of h.texts)
-              (n(e.life / e.max, 0, 1),
-                u(e.text, e.x, e.y, e.size, {
+            for (const e of h.texts) {
+              const rem = n(e.life / e.max, 0, 1),
+                born = 1 - rem;
+              // Pop-in with a small overshoot, then settle; fade out over the
+              // last third of life. Reduced motion keeps a plain fade only.
+              let sc = 1;
+              if (!h.reducedMotion) {
+                const k = n(born / 0.16, 0, 1);
+                sc = 0.62 + 0.38 * k + 0.16 * Math.sin(k * Math.PI);
+              }
+              (t.save(),
+                (t.globalAlpha = n(rem / 0.34, 0, 1)),
+                u(e.text, e.x, e.y, e.size * sc, {
                   color: e.color,
                   stroke: "rgba(5,5,13,.8)",
-                  shadowBlur: 0.6 * e.size,
+                  shadowBlur: 0.6 * e.size * sc,
                   weight: 900,
-                }));
+                }),
+                t.restore());
+            }
           })(),
           (function () {
             if ("paused" === h.mode)
@@ -1954,6 +2000,31 @@
             shadowBlur: 0.55 * m,
             weight: 850,
           });
+      // Global top-5 (only when the leaderboard is live and space allows).
+      if (h.board && h.board.length) {
+        const rs = n(0.13 * e, 8 * h.dpr, 12 * h.dpr),
+          lh = 1.62 * rs,
+          rows = h.board.length,
+          y0 = h.centerY + 2.45 * e,
+          needed = lh * (rows + 1.4);
+        if (y0 + needed < h.h - h.safeBottom - 8 * h.dpr) {
+          u("TOP GUARDIANS", h.centerX, y0, 0.92 * rs, {
+            color: "rgba(255,216,141,.72)",
+            stroke: "rgba(5,5,13,.7)",
+            shadowBlur: 0,
+            weight: 850,
+          });
+          for (let i = 0; i < rows; i++) {
+            const it = h.board[i] || {};
+            u(`${i + 1}.  ${fmtNum(Number(it.score) || 0)}`, h.centerX, y0 + lh * (i + 1.25), rs, {
+              color: i === 0 ? "#fff0b7" : "rgba(255,240,183,.62)",
+              stroke: "rgba(5,5,13,.65)",
+              shadowBlur: 0,
+              weight: 800,
+            });
+          }
+        }
+      }
     }
   }
   function J() {

@@ -35,7 +35,7 @@ Any static server also works after a build (`npx serve dist/web`).
 
 ```bash
 npm run build            # all three variants -> dist/
-npm run build:web        # self-hosted (Vercel/Pages) — also mirrored to repo root
+npm run build:web        # self-hosted (Vercel/Pages) -> dist/web
 npm run build:playables  # fully-offline YouTube Playables bundle
 npm run verify           # build + syntax + headless gameplay smoke tests
 npm run zip:playables    # lumenward-playables.zip (Developer Portal upload)
@@ -49,8 +49,8 @@ npm run zip:itch         # lumenward-itch.zip (itch.io upload)
 | `local` | none | — | local best only | **none** |
 
 Source lives in `src/` (game core, config, platform adapters); `build.mjs`
-assembles, templates the CSP per variant, and minifies with esbuild. The repo
-root mirrors the latest `web` build so a plain Vercel static deploy just works.
+assembles, templates the CSP per variant, and minifies with esbuild. Vercel
+builds and serves `dist/web` via `vercel.json` — no build artifacts live in git.
 
 ## Distribution & docs
 

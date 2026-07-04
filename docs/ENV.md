@@ -13,6 +13,11 @@ deploys as a fully offline experience.
 | `LUMENWARD_SUPABASE_KEY` | `eyJhbGciOi...` (anon key) | Auth for the leaderboard REST calls |
 | `LUMENWARD_CANONICAL` | `https://lumenward.vercel.app` | Canonical origin used in the web build's SEO tags (defaults to this value) |
 
+> **Supabase 404 on `POST /rest/v1/scores`?** The env vars are set but the
+> `scores` table doesn't exist yet. Run `supabase/schema.sql` once in the
+> Supabase Dashboard → SQL Editor; submissions then return 201 and the
+> in-game TOP GUARDIANS list starts working.
+
 These are read by `build.mjs` at build time and injected as `window.LLEnv`.
 They never affect the `playables`/`local` variants, which stay offline.
 
