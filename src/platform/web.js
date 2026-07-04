@@ -82,9 +82,9 @@
   // Table (suggested): scores(name text, score int8, created_at timestamptz).
   // Requires a Row-Level-Security policy allowing anon insert + select.
   P.submitScore = function (score, name) {
-    if (!boardOn) return;
+    if (!boardOn) return Promise.resolve();
     try {
-      fetch(env.supabaseUrl.replace(/\/$/, "") + "/rest/v1/scores", {
+      return fetch(env.supabaseUrl.replace(/\/$/, "") + "/rest/v1/scores", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

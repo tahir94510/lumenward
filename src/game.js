@@ -1061,14 +1061,19 @@
               (h.best = Math.max(h.best, h.score)),
               (h.board = null),
               (function () {
-                // Optional global top-list (web variant with Supabase enabled).
+                // Submit the run's score, then (web + leaderboard only) fetch
+                // the top list AFTER the submit settles so the fresh score is
+                // included — fetching in parallel raced the insert and showed
+                // an empty board on new tables.
                 try {
                   const P = window.LLPlatform;
-                  P &&
-                    P.topScores &&
+                  if (!P) return;
+                  const sub = P.submitScore ? P.submitScore(h.score) : null;
+                  P.topScores &&
                     P.features &&
                     P.features.leaderboard &&
-                    P.topScores(5)
+                    Promise.resolve(sub)
+                      .then(() => P.topScores(5))
                       .then((l) => {
                         h.board = Array.isArray(l) ? l.slice(0, 5) : [];
                       })
@@ -1081,10 +1086,6 @@
                 } catch (_) {}
                 try {
                   if (window.LLPlatform && window.LLPlatform.saveBest) window.LLPlatform.saveBest(e);
-                } catch (_) {}
-                try {
-                  if (window.LLPlatform && window.LLPlatform.submitScore)
-                    window.LLPlatform.submitScore(h.score);
                 } catch (_) {}
               })(h.best),
               announce(
@@ -2001,11 +2002,15 @@
             weight: 850,
           });
       // Global top-5 (only when the leaderboard is live and space allows).
+      // Anchored below the RETRY/MENU row (mirrors the button layout math in
+      // v(), which shrinks with the shattered star), never above the nudge.
       if (h.board && h.board.length) {
-        const rs = n(0.13 * e, 8 * h.dpr, 12 * h.dpr),
+        const rs = n(0.13 * h.starR, 8 * h.dpr, 12 * h.dpr),
           lh = 1.62 * rs,
           rows = h.board.length,
-          y0 = h.centerY + 2.45 * e,
+          btnTop = h.centerY + e + n(0.46 * e, 22 * h.dpr, 44 * h.dpr),
+          btnH = n(0.44 * e, 23 * h.dpr, 47 * h.dpr),
+          y0 = Math.max(btnTop + btnH + n(0.42 * h.starR, 20 * h.dpr, 34 * h.dpr), g + 2.4 * m),
           needed = lh * (rows + 1.4);
         if (y0 + needed < h.h - h.safeBottom - 8 * h.dpr) {
           u("TOP GUARDIANS", h.centerX, y0, 0.92 * rs, {

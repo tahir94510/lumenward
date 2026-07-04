@@ -71,7 +71,20 @@ required target automatically.
 
 ## 5. Vercel (your current host)
 
-Nothing to change: the repo root always mirrors the latest `dist/web` build, so
-the existing static deploy keeps working. With the rename, claim the clean
-project name **lumenward** → `lumenward.vercel.app` (no more "the-" prefix).
-Set the env vars from ENV.md in Vercel only when you enable ads/leaderboard.
+`vercel.json` builds `dist/web` (`npm run build:web`) — no build artifacts live
+in git. The clean project name is claimed: **lumenward.vercel.app**. Set the
+env vars from ENV.md in Vercel only when you enable ads/leaderboard.
+
+> **Seeing red CSP violations in your own console?** Two known third-party
+> injections trigger them and both are harmless to players:
+> 1. **Vercel Toolbar / Vercel Live** injects an inline feedback script when
+>    *you* (a logged-in project member) view the site; our strict CSP blocks
+>    it by design. For a clean console: Vercel Dashboard → your project →
+>    Settings → **Vercel Toolbar** → disable (or use a private window).
+>    Regular visitors never load it.
+> 2. **Browser extensions** ("sandbox eval code" entries) injecting scripts
+>    are likewise blocked by the CSP — that's the CSP protecting the page.
+>
+> Do not add these hashes to the CSP: toolbar script hashes rotate on every
+> Vercel release (the mysterious stale hash in the original game's CSP was
+> exactly such a snapshot).

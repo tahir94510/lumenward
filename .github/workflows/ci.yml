@@ -28,6 +28,8 @@ jobs:
         run: npm run build
       - name: Syntax check
         run: node --check src/game.js && node --check dist/web/app.min.js
+      - name: Variant isolation audit
+        run: node tests/audit.mjs
       - name: Playables offline audit
         # The Playables bundle must not reference any network origin other
         # than the YouTube SDK. Fail the build if anything else slips in.
