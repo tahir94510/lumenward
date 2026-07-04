@@ -43,21 +43,12 @@ keeps the game family-safe and inside 2026 consumer-protection expectations.
 
 Off until you create a project at supabase.com:
 
-1. New project → SQL editor:
-   ```sql
-   create table scores (
-     id bigint generated always as identity primary key,
-     name text not null default 'anon',
-     score bigint not null,
-     created_at timestamptz not null default now()
-   );
-   alter table scores enable row level security;
-   create policy "anon can insert" on scores for insert to anon with check (score >= 0 and score < 100000000 and char_length(name) <= 24);
-   create policy "anon can read" on scores for select to anon using (true);
-   ```
+1. New project → SQL Editor → run **`supabase/schema.sql`** from this repo
+   (idempotent: table + index + RLS policies). Skipping this step is what
+   causes a 404 on `POST /rest/v1/scores`.
 2. Set `LUMENWARD_SUPABASE_URL` and `LUMENWARD_SUPABASE_KEY` (the anon key)
-   in Vercel/GitHub, rebuild — the web adapter submits scores and can fetch
-   the top list (`LLPlatform.topScores(n)`).
+   in Vercel/GitHub, rebuild — the web build submits each run's score on
+   game over and shows a **TOP GUARDIANS** top-5 on the game-over screen.
 
 Free tier is plenty for a leaderboard; if the game takes off, upgrade later —
 nothing else changes.

@@ -92,7 +92,7 @@
           Authorization: "Bearer " + env.supabaseKey,
           Prefer: "return=minimal",
         },
-        body: JSON.stringify({ name: (name || "anon").slice(0, 24), score: score | 0 }),
+        body: JSON.stringify({ name: (name || "GUARDIAN").slice(0, 24), score: score | 0 }),
       }).catch(function () {});
     } catch (e) {}
   };

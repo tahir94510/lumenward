@@ -248,13 +248,6 @@ async function main() {
     const jsPath = await writeVariant(t, outDir);
     const size = readFileSync(jsPath).length;
     console.log(`  build ${t.padEnd(10)} -> ${jsPath}  (${(size / 1024).toFixed(1)} KB)`);
-    // Mirror the web build to the repo root so the existing Vercel/Pages
-    // static deploy keeps serving the game with no reconfiguration.
-    if (t === "web") {
-      for (const f of ["app.min.js", "index.html", "manifest.webmanifest", "privacy.html"]) {
-        copyFileSync(join(outDir, f), join(ROOT, f));
-      }
-    }
   }
   console.log("build complete.");
 }
