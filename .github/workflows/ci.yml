@@ -52,17 +52,17 @@ jobs:
           npm run zip:playables
           npm run zip:itch
       - name: Upload Playables bundle (for the Developer Portal)
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: lumenward-playables
           path: lumenward-playables.zip
       - name: Upload itch.io bundle
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: lumenward-itch
           path: lumenward-itch.zip
       - name: Upload web build (Vercel/Pages ready)
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: lumenward-web
           path: dist/web
