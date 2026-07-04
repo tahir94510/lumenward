@@ -35,6 +35,8 @@
       this.comp = null;
       this.music = null;
       this.noSfx = false;
+      this.unlocked = false;
+      this.resuming = false;
       this.voices = 0;
       this.maxVoices = 24;
       this.stepAt = 0;
@@ -71,8 +73,25 @@
       this.music.connect(this.master);
     }
     resume() {
+      // Only ever call from real user gestures (pointerdown, keydown, button
+      // presses) or after a previous successful unlock — creating or resuming
+      // an AudioContext outside user activation triggers browser autoplay
+      // warnings and leaves the context stuck in "suspended".
       this.init();
-      if (this.ctx && this.ctx.state === "suspended") this.ctx.resume();
+      if (!this.ctx) return;
+      if (this.ctx.state === "suspended") {
+        this.resuming = true;
+        const p = this.ctx.resume();
+        p &&
+          p.then &&
+          p
+            .then(() => {
+              ((this.unlocked = true), (this.resuming = false));
+            })
+            .catch(() => {
+              this.resuming = false;
+            });
+      } else this.unlocked = true;
     }
     _persist() {
       try {
@@ -112,8 +131,14 @@
         self.voices = Math.max(0, self.voices - 1);
       };
     }
+    _ready() {
+      // Never schedule audio on a suspended context (spams autoplay warnings);
+      // allow it while a gesture-driven resume is in flight so the first
+      // click's sound still lands once the context starts.
+      return this.ctx && (this.ctx.state === "running" || this.resuming);
+    }
     tone(e, t, r = 0.06, a = "square", n = null, o = 0, delay = 0) {
-      if (!this.enabled || !this.ctx || this.voices > this.maxVoices) return;
+      if (!this.enabled || !this._ready() || this.voices > this.maxVoices) return;
       const s = this.ctx.currentTime + delay,
         i = this.ctx.createOscillator(),
         l = this.ctx.createGain();
@@ -130,7 +155,7 @@
         i.stop(s + t + 0.03));
     }
     noise(e, t = 0.07, r = 900, a = null) {
-      if (!this.enabled || !this.ctx || this.voices > this.maxVoices) return;
+      if (!this.enabled || !this._ready() || this.voices > this.maxVoices) return;
       const n = this.ctx.currentTime,
         o = Math.max(1, Math.floor(this.ctx.sampleRate * e)),
         s = this.ctx.createBuffer(1, o, this.ctx.sampleRate),
@@ -153,7 +178,7 @@
         l.stop(n + e + 0.02));
     }
     tick(e, t) {
-      if (!this.enabled || !this.ctx) return;
+      if (!this.enabled || !this._ready()) return;
       this.stepAt -= e;
       if (this.stepAt > 0) return;
       const playing = "playing" === t,
@@ -2442,8 +2467,11 @@
       document.addEventListener("visibilitychange", () => {
         if (!document.hidden) {
           c();
+          // Only re-resume if the player already unlocked audio with a real
+          // gesture; touching the context before that triggers autoplay
+          // warnings and creates it in a permanently-suspended state.
           try {
-            d.resume();
+            d.unlocked && d.resume();
           } catch (_) {}
         }
       }),
